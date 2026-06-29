@@ -557,16 +557,7 @@
     const markers = new Map(); // id -> L.marker
 
     // ---------- Map ----------
-    const map = L.map("map", {
-      worldCopyJump: true,
-      minZoom: 2,
-      doubleClickZoom: false,
-      zoomControl: false,
-      zoomSnap: 0,             // allow fractional zoom -> continuous, not stepped
-      zoomDelta: 0.5,
-      wheelPxPerZoomLevel: 80, // scroll per zoom level (lower = more responsive)
-      wheelDebounceTime: 15,
-    }).setView([20, 10], 2);
+    const map = L.map("map", { worldCopyJump: true, minZoom: 2, doubleClickZoom: false, zoomControl: false }).setView([20, 10], 2);
 
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       attribution: '&copy; OpenStreetMap &copy; CARTO',
@@ -666,10 +657,9 @@
       .then((r) => r.json())
       .then((geo) => {
         countryLayer = L.geoJSON(geo, {
-          // Some padding -> polygons aren't clipped to the viewport on zoom, so the
+          // Big padding -> polygons aren't clipped to the viewport on zoom, so the
           // flag fill (objectBoundingBox) stays mapped to the whole country.
-          // Kept modest to avoid a huge SVG repainting on every zoom frame.
-          renderer: L.svg({ padding: 1 }),
+          renderer: L.svg({ padding: 4 }),
           style: styleCountry,
           onEachFeature: (f, layer) => {
             layer.on("click", () => {
