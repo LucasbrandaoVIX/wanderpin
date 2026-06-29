@@ -49,9 +49,44 @@
       display: flex;
       flex-direction: column;
       height: 100%;
+      transition: margin-left .25s ease;
     }
+    body.nav-collapsed #sidebar { margin-left: -340px; }
+
+    #openBtn {
+      position: absolute;
+      top: 12px; left: 12px;
+      z-index: 1000;
+      display: none;
+      align-items: center; justify-content: center;
+      width: 40px; height: 40px;
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 17px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,.45);
+    }
+    #openBtn:hover { background: var(--panel-2); }
+    body.nav-collapsed #openBtn { display: flex; }
+
+    .collapse-btn {
+      position: absolute;
+      top: 16px; right: 14px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 2px 9px;
+      border-radius: 8px;
+    }
+    .collapse-btn:hover { color: var(--text); background: var(--panel-2); }
 
     .brand {
+      position: relative;
       padding: 20px 20px 16px;
       border-bottom: 1px solid var(--border);
     }
@@ -246,12 +281,15 @@
       body { flex-direction: column; }
       #sidebar { width: 100%; min-width: 0; height: 45%; }
       #map { height: 55%; }
+      body.nav-collapsed #sidebar { margin-left: 0; display: none; }
+      body.nav-collapsed #map { height: 100%; }
     }
   </style>
 </head>
 <body>
   <aside id="sidebar">
     <div class="brand">
+      <button id="collapseBtn" class="collapse-btn" title="Collapse menu" aria-label="Collapse menu">‹</button>
       <h1>🌍 My Travel Map</h1>
       <p>Pins on cities, flags on the countries you've visited.</p>
     </div>
@@ -278,6 +316,7 @@
     <div id="list"></div>
   </aside>
 
+  <button id="openBtn" title="Open menu" aria-label="Open menu">☰</button>
   <div id="map"></div>
 
   <script>
@@ -365,7 +404,8 @@
     const markers = new Map(); // id -> L.marker
 
     // ---------- Map ----------
-    const map = L.map("map", { worldCopyJump: true, minZoom: 2, doubleClickZoom: false }).setView([20, 10], 2);
+    const map = L.map("map", { worldCopyJump: true, minZoom: 2, doubleClickZoom: false, zoomControl: false }).setView([20, 10], 2);
+    L.control.zoom({ position: "topright" }).addTo(map);
 
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       attribution: '&copy; OpenStreetMap &copy; CARTO',
@@ -594,6 +634,14 @@
     });
 
     map.on("dblclick", (e) => reverseGeocode(e.latlng.lat, e.latlng.lng));
+
+    // Collapse / expand the sidebar.
+    function setNav(collapsed) {
+      document.body.classList.toggle("nav-collapsed", collapsed);
+      setTimeout(() => map.invalidateSize(), 280);
+    }
+    document.getElementById("collapseBtn").addEventListener("click", () => setNav(true));
+    document.getElementById("openBtn").addEventListener("click", () => setNav(false));
 
     async function fetchSuggestions(q) {
       const seq = ++searchSeq;
