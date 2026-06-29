@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Meu Mapa de Viagens</title>
+  <title>My Travel Map</title>
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -252,28 +252,28 @@
 <body>
   <aside id="sidebar">
     <div class="brand">
-      <h1>🌍 Meu Mapa de Viagens</h1>
-      <p>Pins nas cidades, cores nos países visitados.</p>
+      <h1>🌍 My Travel Map</h1>
+      <p>Pins on cities, flags on the countries you've visited.</p>
     </div>
 
     <div class="search">
       <div class="search-row">
-        <input id="cityInput" type="text" placeholder="Cidade (ex: Tóquio, Lisboa...)" autocomplete="off" />
-        <button id="addBtn">Adicionar</button>
+        <input id="cityInput" type="text" placeholder="City (e.g. Tokyo, Lisbon...)" autocomplete="off" />
+        <button id="addBtn">Add</button>
         <div id="suggest"></div>
       </div>
-      <div class="hint">Digite uma cidade e Enter. Ou clique duas vezes no mapa para marcar um ponto.</div>
+      <div class="hint">Type a city and press Enter. Or double-click the map to drop a point.</div>
       <div id="status"></div>
     </div>
 
     <div class="stats">
-      <div class="stat"><div class="num" id="statCities">0</div><div class="lbl">Cidades</div></div>
-      <div class="stat"><div class="num" id="statCountries">0</div><div class="lbl">Países</div></div>
+      <div class="stat"><div class="num" id="statCities">0</div><div class="lbl">Cities</div></div>
+      <div class="stat"><div class="num" id="statCountries">0</div><div class="lbl">Countries</div></div>
     </div>
 
     <div class="list-head">
-      <span>Lugares visitados</span>
-      <button id="clearBtn">limpar tudo</button>
+      <span>Visited places</span>
+      <button id="clearBtn">clear all</button>
     </div>
     <div id="list"></div>
   </aside>
@@ -285,78 +285,78 @@
     "use strict";
 
     const STORAGE_KEY = "travel-map-places-v1";
-    const SEED_KEY = "travel-map-seeded-v1";
+    const SEED_KEY = "travel-map-seeded-v2";
     const COUNTRY_GEOJSON =
       "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson";
 
-    // Lugares pré-cadastrados (rodam uma única vez, sem apagar os seus).
+    // Pre-loaded places (seeded once; user-added places are preserved).
     const SEED = [
-      // Brasil (BR)
-      ["Vitória", "Brasil", "BR", -20.3155, -40.3128],
-      ["São Paulo", "Brasil", "BR", -23.5505, -46.6333],
-      ["Rio de Janeiro", "Brasil", "BR", -22.9068, -43.1729],
-      ["Goiânia", "Brasil", "BR", -16.6869, -49.2648],
-      ["Recife", "Brasil", "BR", -8.0476, -34.8770],
-      ["Foz do Iguaçu", "Brasil", "BR", -25.5163, -54.5854],
-      ["Porto Alegre", "Brasil", "BR", -30.0346, -51.2177],
-      ["Gramado", "Brasil", "BR", -29.3789, -50.8740],
-      ["São João del Rei", "Brasil", "BR", -21.1359, -44.2619],
-      ["Belo Horizonte", "Brasil", "BR", -19.9167, -43.9345],
-      ["Ouro Preto", "Brasil", "BR", -20.3856, -43.5035],
-      ["Cumuruxatiba", "Brasil", "BR", -17.0954, -39.1880],
-      ["Guarapari", "Brasil", "BR", -20.6717, -40.4969],
-      ["Pedra Azul (ES)", "Brasil", "BR", -20.4119, -41.0186],
-      ["Petrópolis", "Brasil", "BR", -22.5050, -43.1786],
+      // Brazil (BR)
+      ["Vitória", "Brazil", "BR", -20.3155, -40.3128],
+      ["São Paulo", "Brazil", "BR", -23.5505, -46.6333],
+      ["Rio de Janeiro", "Brazil", "BR", -22.9068, -43.1729],
+      ["Goiânia", "Brazil", "BR", -16.6869, -49.2648],
+      ["Recife", "Brazil", "BR", -8.0476, -34.8770],
+      ["Foz do Iguaçu", "Brazil", "BR", -25.5163, -54.5854],
+      ["Porto Alegre", "Brazil", "BR", -30.0346, -51.2177],
+      ["Gramado", "Brazil", "BR", -29.3789, -50.8740],
+      ["São João del-Rei", "Brazil", "BR", -21.1359, -44.2619],
+      ["Belo Horizonte", "Brazil", "BR", -19.9167, -43.9345],
+      ["Ouro Preto", "Brazil", "BR", -20.3856, -43.5035],
+      ["Cumuruxatiba", "Brazil", "BR", -17.0954, -39.1880],
+      ["Guarapari", "Brazil", "BR", -20.6717, -40.4969],
+      ["Pedra Azul (ES)", "Brazil", "BR", -20.4119, -41.0186],
+      ["Petrópolis", "Brazil", "BR", -22.5050, -43.1786],
       // Argentina (AR)
       ["Bariloche", "Argentina", "AR", -41.1335, -71.3103],
       ["Puerto Iguazú", "Argentina", "AR", -25.5990, -54.5735],
-      // Paraguai (PY)
-      ["Ciudad del Este", "Paraguai", "PY", -25.5095, -54.6111],
-      // EUA (US)
-      ["Miami", "Estados Unidos", "US", 25.7617, -80.1918],
-      ["Key West", "Estados Unidos", "US", 24.5551, -81.7800],
-      ["Orlando", "Estados Unidos", "US", 28.5383, -81.3792],
-      ["São Francisco", "Estados Unidos", "US", 37.7749, -122.4194],
-      ["Los Angeles", "Estados Unidos", "US", 34.0522, -118.2437],
-      ["Las Vegas", "Estados Unidos", "US", 36.1699, -115.1398],
-      ["Solvang", "Estados Unidos", "US", 34.5958, -120.1377],
-      ["Monterey", "Estados Unidos", "US", 36.6002, -121.8947],
-      ["Napa Valley", "Estados Unidos", "US", 38.2975, -122.2869],
-      ["Mount Charleston", "Estados Unidos", "US", 36.2716, -115.6953],
-      // Espanha (ES)
-      ["Barcelona", "Espanha", "ES", 41.3851, 2.1734],
-      ["Valência", "Espanha", "ES", 39.4699, -0.3763],
-      ["Madri", "Espanha", "ES", 40.4168, -3.7038],
-      ["Girona", "Espanha", "ES", 41.9794, 2.8214],
-      ["Montserrat", "Espanha", "ES", 41.5938, 1.8376],
-      ["Peñíscola", "Espanha", "ES", 40.3580, 0.4070],
+      // Paraguay (PY)
+      ["Ciudad del Este", "Paraguay", "PY", -25.5095, -54.6111],
+      // United States (US)
+      ["Miami", "United States", "US", 25.7617, -80.1918],
+      ["Key West", "United States", "US", 24.5551, -81.7800],
+      ["Orlando", "United States", "US", 28.5383, -81.3792],
+      ["San Francisco", "United States", "US", 37.7749, -122.4194],
+      ["Los Angeles", "United States", "US", 34.0522, -118.2437],
+      ["Las Vegas", "United States", "US", 36.1699, -115.1398],
+      ["Solvang", "United States", "US", 34.5958, -120.1377],
+      ["Monterey", "United States", "US", 36.6002, -121.8947],
+      ["Napa Valley", "United States", "US", 38.2975, -122.2869],
+      ["Mount Charleston", "United States", "US", 36.2716, -115.6953],
+      // Spain (ES)
+      ["Barcelona", "Spain", "ES", 41.3851, 2.1734],
+      ["Valencia", "Spain", "ES", 39.4699, -0.3763],
+      ["Madrid", "Spain", "ES", 40.4168, -3.7038],
+      ["Girona", "Spain", "ES", 41.9794, 2.8214],
+      ["Montserrat", "Spain", "ES", 41.5938, 1.8376],
+      ["Peñíscola", "Spain", "ES", 40.3580, 0.4070],
       // Andorra (AD)
       ["Andorra la Vella", "Andorra", "AD", 42.5063, 1.5218],
-      // França (FR)
-      ["Paris", "França", "FR", 48.8566, 2.3522],
-      ["Nice", "França", "FR", 43.7102, 7.2620],
-      ["Menton", "França", "FR", 43.7765, 7.5000],
-      ["Cannes", "França", "FR", 43.5528, 7.0174],
-      // Mônaco (MC)
-      ["Mônaco", "Mônaco", "MC", 43.7384, 7.4246],
-      // Itália (IT)
-      ["San Remo", "Itália", "IT", 43.8159, 7.7762],
-      ["Ventimiglia", "Itália", "IT", 43.7906, 7.6076],
-      // Reino Unido (GB)
-      ["Londres", "Reino Unido", "GB", 51.5074, -0.1278],
-      ["Cambridge", "Reino Unido", "GB", 52.2053, 0.1218],
-      // Alemanha (DE)
-      ["Munique", "Alemanha", "DE", 48.1351, 11.5820],
-      // Áustria (AT)
-      ["Salzburg", "Áustria", "AT", 47.8095, 13.0550],
+      // France (FR)
+      ["Paris", "France", "FR", 48.8566, 2.3522],
+      ["Nice", "France", "FR", 43.7102, 7.2620],
+      ["Menton", "France", "FR", 43.7765, 7.5000],
+      ["Cannes", "France", "FR", 43.5528, 7.0174],
+      // Monaco (MC)
+      ["Monaco", "Monaco", "MC", 43.7384, 7.4246],
+      // Italy (IT)
+      ["Sanremo", "Italy", "IT", 43.8159, 7.7762],
+      ["Ventimiglia", "Italy", "IT", 43.7906, 7.6076],
+      // United Kingdom (GB)
+      ["London", "United Kingdom", "GB", 51.5074, -0.1278],
+      ["Cambridge", "United Kingdom", "GB", 52.2053, 0.1218],
+      // Germany (DE)
+      ["Munich", "Germany", "DE", 48.1351, 11.5820],
+      // Austria (AT)
+      ["Salzburg", "Austria", "AT", 47.8095, 13.0550],
     ];
 
-    // Grandes centros turísticos -> pin especial (maior, anel dourado e estrela).
+    // Major tourist hubs -> special pin (larger, golden ring and star).
     const MAJOR = new Set([
       "Rio de Janeiro", "São Paulo", "Foz do Iguaçu",
-      "Miami", "Orlando", "Los Angeles", "Las Vegas", "São Francisco",
-      "Barcelona", "Madri", "Paris", "Nice", "Cannes", "Mônaco",
-      "Londres", "Munique", "Salzburg",
+      "Miami", "Orlando", "Los Angeles", "Las Vegas", "San Francisco",
+      "Barcelona", "Madrid", "Paris", "Nice", "Cannes", "Monaco",
+      "London", "Munich", "Salzburg",
     ]);
 
     let places = load();
@@ -373,8 +373,8 @@
       maxZoom: 19,
     }).addTo(map);
 
-    // Um grupo de cluster por país -> só junta bolinhas do mesmo país,
-    // e a bolha do cluster mantém a bandeira daquele país.
+    // One cluster group per country -> only merges pins of the same country,
+    // and the cluster bubble keeps that country's flag.
     const clusters = new Map(); // iso2 -> L.markerClusterGroup
 
     function clusterFor(iso2) {
@@ -408,14 +408,14 @@
       return g;
     }
 
-    // Lê a posição (px) que o Leaflet aplicou no ícone externo.
+    // Read the (px) position Leaflet applied to the outer icon.
     function iconXY(el) {
       const m = /translate3d\(\s*([-\d.]+)px,\s*([-\d.]+)px/.exec(el.style.transform || "");
       return m ? { x: +m[1], y: +m[2] } : null;
     }
 
-    // Declutter REAL: afasta ícones que se sobrepõem, mas só entre países DIFERENTES.
-    // (mesmo país já é resolvido pelo cluster.)
+    // REAL declutter: pushes overlapping icons apart, but only between DIFFERENT countries.
+    // (same country is already handled by clustering.)
     function spread() {
       const pane = map.getPane("markerPane");
       if (!pane) return;
@@ -424,10 +424,10 @@
         const inner = el.firstElementChild;
         if (!inner) return;
         const country = inner.getAttribute("data-c");
-        if (country == null) return; // ícone sem país (fallback) -> ignora
+        if (country == null) return; // icon without a country (fallback) -> skip
         const pos = iconXY(el);
         if (!pos) return;
-        inner.style.transform = ""; // zera deslocamento anterior
+        inner.style.transform = ""; // reset any previous offset
         items.push({ country, inner, x: pos.x, y: pos.y, r: (inner.offsetWidth || 20) / 2, ox: 0, oy: 0 });
       });
 
@@ -436,7 +436,7 @@
         for (let i = 0; i < items.length; i++) {
           for (let j = i + 1; j < items.length; j++) {
             const a = items[i], b = items[j];
-            if (a.country === b.country) continue; // mesmo país: deixa o cluster cuidar
+            if (a.country === b.country) continue; // same country: let clustering handle it
             let dx = (b.x + b.ox) - (a.x + a.ox);
             let dy = (b.y + b.oy) - (a.y + a.oy);
             let d = Math.hypot(dx, dy);
@@ -475,7 +475,7 @@
         countryLayer.bringToBack();
         refreshCountryColors();
       })
-      .catch(() => setStatus("Não consegui carregar os contornos dos países (sem internet?).", "err"));
+      .catch(() => setStatus("Couldn't load country borders (offline?).", "err"));
 
     function visitedISO2() {
       const set = new Set();
@@ -507,7 +507,7 @@
 
     const SVG_NS = "http://www.w3.org/2000/svg";
 
-    // Cria (uma vez) o <pattern> com a bandeira do país dentro do SVG do mapa.
+    // Create (once) the <pattern> with the country flag inside the map SVG.
     function ensureFlagPattern(svg, iso) {
       const id = "flagpat-" + iso;
       if (!svg || svg.querySelector("#" + id)) return id;
@@ -530,7 +530,7 @@
       return id;
     }
 
-    // Preenche cada país visitado com a sua bandeira, bem suave.
+    // Fill each visited country with its own flag, very subtle.
     function applyFlagFills() {
       if (!countryLayer) return;
       countryLayer.eachLayer((layer) => {
@@ -598,25 +598,25 @@
     async function fetchSuggestions(q) {
       const seq = ++searchSeq;
       suggestEl.classList.add("open");
-      suggestEl.innerHTML = '<div class="sug-info">Buscando…</div>';
+      suggestEl.innerHTML = '<div class="sug-info">Searching…</div>';
       try {
         const url =
           "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&addressdetails=1&q=" +
           encodeURIComponent(q);
-        const res = await fetch(url, { headers: { "Accept-Language": "pt-BR" } });
+        const res = await fetch(url, { headers: { "Accept-Language": "en" } });
         const data = await res.json();
         if (seq !== searchSeq) return; // a newer search already fired
         suggestions = data;
         renderSuggestions();
       } catch (err) {
         if (seq !== searchSeq) return;
-        suggestEl.innerHTML = '<div class="sug-info">Erro na busca. Verifique a internet.</div>';
+        suggestEl.innerHTML = '<div class="sug-info">Search error. Check your connection.</div>';
       }
     }
 
     function renderSuggestions() {
       if (!suggestions.length) {
-        suggestEl.innerHTML = '<div class="sug-info">Nenhum resultado.</div>';
+        suggestEl.innerHTML = '<div class="sug-info">No results.</div>';
         suggestEl.classList.add("open");
         return;
       }
@@ -626,7 +626,7 @@
         const name =
           addr.city || addr.town || addr.village || addr.municipality ||
           addr.county || addr.state ||
-          (hit.display_name ? hit.display_name.split(",")[0] : "Local");
+          (hit.display_name ? hit.display_name.split(",")[0] : "Place");
         const rest = (hit.display_name || "")
           .split(",").slice(1).map((s) => s.trim()).filter(Boolean).join(", ");
         const flag = isoToFlag((addr.country_code || "").toUpperCase());
@@ -650,7 +650,7 @@
       commitPlace(place);
       input.value = "";
       closeSuggest();
-      setStatus("Adicionado: " + place.city, "ok");
+      setStatus("Added: " + place.city, "ok");
     }
 
     function closeSuggest() {
@@ -664,39 +664,39 @@
       const q = input.value.trim();
       if (!q) return;
       addBtn.disabled = true;
-      setStatus("Buscando…", "");
+      setStatus("Searching…", "");
       try {
         const url =
           "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&q=" +
           encodeURIComponent(q);
-        const res = await fetch(url, { headers: { "Accept-Language": "pt-BR" } });
+        const res = await fetch(url, { headers: { "Accept-Language": "en" } });
         const data = await res.json();
-        if (!data.length) { setStatus("Cidade não encontrada. Tenta de outro jeito.", "err"); return; }
+        if (!data.length) { setStatus("City not found. Try another spelling.", "err"); return; }
         const place = buildPlace(data[0], q);
         commitPlace(place);
         input.value = "";
-        setStatus("Adicionado: " + place.city, "ok");
+        setStatus("Added: " + place.city, "ok");
       } catch (err) {
-        setStatus("Erro na busca. Verifique a internet.", "err");
+        setStatus("Search error. Check your connection.", "err");
       } finally {
         addBtn.disabled = false;
       }
     }
 
     async function reverseGeocode(lat, lon) {
-      setStatus("Identificando local…", "");
+      setStatus("Identifying location…", "");
       try {
         const url =
           "https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=10&lat=" +
           lat + "&lon=" + lon;
-        const res = await fetch(url, { headers: { "Accept-Language": "pt-BR" } });
+        const res = await fetch(url, { headers: { "Accept-Language": "en" } });
         const hit = await res.json();
-        if (!hit || hit.error) { setStatus("Não consegui identificar esse ponto.", "err"); return; }
+        if (!hit || hit.error) { setStatus("Couldn't identify this point.", "err"); return; }
         const place = buildPlace(hit, null, lat, lon);
         commitPlace(place);
-        setStatus("Adicionado: " + place.city, "ok");
+        setStatus("Added: " + place.city, "ok");
       } catch (err) {
-        setStatus("Erro ao identificar o ponto.", "err");
+        setStatus("Error identifying the point.", "err");
       }
     }
 
@@ -794,7 +794,7 @@
     function renderList() {
       if (!places.length) {
         listEl.innerHTML =
-          '<div class="empty">Nenhum lugar ainda.<br>Busque uma cidade ou clique no mapa para começar. ✈️</div>';
+          '<div class="empty">No places yet.<br>Search a city or double-click the map to start. ✈️</div>';
         return;
       }
       const sorted = [...places].sort((a, b) =>
@@ -825,7 +825,7 @@
 
     document.getElementById("clearBtn").addEventListener("click", () => {
       if (!places.length) return;
-      if (!confirm("Apagar todos os lugares?")) return;
+      if (!confirm("Delete all places?")) return;
       clusters.forEach((g) => g.clearLayers());
       markers.clear();
       places = [];
@@ -870,7 +870,9 @@
     }
 
     function maybeSeed() {
-      if (localStorage.getItem(SEED_KEY)) return; // já semeado uma vez
+      if (localStorage.getItem(SEED_KEY)) return; // already seeded (this version)
+      // Drop any previous-version seed (keeps user-added places).
+      places = places.filter((p) => !String(p.id).startsWith("p_seed_"));
       SEED.forEach((s, i) => {
         const [city, country, iso2, lat, lon] = s;
         const dup = places.find((p) => p.city === city && p.country === country);

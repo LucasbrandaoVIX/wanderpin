@@ -1,32 +1,32 @@
 # wanderpin 🌍📍
 
-Um mapa pessoal das suas viagens — coloque pins nas cidades que já visitou e veja os países que conheceu pintados com a própria bandeira (bem suave).
+A personal map of your travels — drop pins on the cities you've visited and watch the countries you've been to get painted with their own flag (very subtle).
 
-App de arquivo único: é só abrir o `index.html` no navegador. Sem instalação, sem build.
+Single-file app: just open `index.html` in your browser. No install, no build.
 
-## Funcionalidades
+## Features
 
-- **Buscar cidade** com autocomplete (sugestões enquanto digita) — cai um pin com a bandeira do país.
-- **Duplo-clique no mapa** para marcar um ponto manualmente.
-- **Países visitados** ganham a própria bandeira como fundo, bem translúcida.
-- **Clusters por país**: bolinhas amontoadas do mesmo país viram uma bolha maior com a contagem.
-- **Declutter entre países**: pins de países diferentes que se sobrepõem se afastam automaticamente.
-- **Centros turísticos** ganham pin maior com anel dourado e ⭐.
-- **Lista lateral** com tudo agrupado por país, contadores e remoção rápida.
-- Tudo salvo no navegador (`localStorage`) — fecha e abre depois sem perder nada.
+- **City search** with autocomplete (suggestions as you type) — drops a pin with the country's flag.
+- **Double-click the map** to drop a point manually.
+- **Visited countries** are filled with their own flag as a faint background.
+- **Per-country clustering**: crowded pins of the same country merge into a bigger flag bubble with a count.
+- **Cross-country declutter**: pins from different countries that overlap push each other apart.
+- **Tourist hubs** get a larger pin with a golden ring and a ⭐.
+- **Sidebar list** grouped by country, with counters and quick removal.
+- Everything is saved in the browser (`localStorage`) — close and reopen without losing anything.
 
-## Como usar
+## Usage
 
-Abra o `index.html` em qualquer navegador. Requer conexão com a internet para os tiles do mapa, busca de cidades (Nominatim/OpenStreetMap) e imagens de bandeira (flagcdn).
+Open `index.html` in any browser. Requires an internet connection for the map tiles, city search (Nominatim/OpenStreetMap) and flag images (flagcdn).
 
 ## Stack
 
-- [Leaflet](https://leafletjs.com/) + tiles escuros da CARTO
+- [Leaflet](https://leafletjs.com/) + CARTO dark tiles
 - [Leaflet.markercluster](https://github.com/Leaflet/Leaflet.markercluster)
 - Geocoding: [Nominatim](https://nominatim.org/) (OpenStreetMap)
-- Contornos dos países: [Natural Earth](https://www.naturalearthdata.com/)
-- Bandeiras: [flagcdn](https://flagcdn.com/)
+- Country borders: [Natural Earth](https://www.naturalearthdata.com/)
+- Flags: [flagcdn](https://flagcdn.com/)
 
-## Licença
+## License
 
 MIT
