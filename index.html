@@ -96,15 +96,39 @@
       border-bottom: 1px solid var(--border);
     }
 
-    /* Account row */
-    .account { display: none; align-items: center; gap: 8px; margin-top: 12px; }
-    body.logged-in .account { display: flex; }
-    .acc-email { flex: 1; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .acc-logout {
-      background: none; border: 1px solid var(--border); color: var(--muted);
-      font-size: 11px; padding: 4px 9px; border-radius: 7px; cursor: pointer;
+    /* Profile button (header) */
+    .profile-btn {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%;
+      margin-top: 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 12.5px;
+      padding: 9px 11px;
+      border-radius: 9px;
+      cursor: pointer;
+      text-align: left;
     }
-    .acc-logout:hover { color: var(--text); }
+    .profile-btn:hover { border-color: var(--accent); }
+    .profile-btn #profileLabel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    body.logged-in .profile-btn .pf-dot { color: var(--accent); }
+
+    /* Auth / profile overlay views */
+    .auth-close {
+      position: absolute; top: 12px; right: 14px;
+      background: none; border: none; color: var(--muted);
+      font-size: 22px; line-height: 1; cursor: pointer; padding: 2px 8px; border-radius: 8px;
+    }
+    .auth-close:hover { color: var(--text); background: var(--panel-2); }
+    #authProfile { display: none; }
+    body.logged-in #authForm { display: none; }
+    body.logged-in #authProfile { display: block; }
+    .profile-email {
+      background: var(--panel-2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 13px; font-size: 14px; margin: 4px 0 14px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
 
     /* Auth overlay */
     #authOverlay {
@@ -116,6 +140,7 @@
     }
     #authOverlay.show { display: flex; }
     .auth-card {
+      position: relative;
       width: 100%; max-width: 360px;
       background: var(--panel);
       border: 1px solid var(--border);
@@ -380,14 +405,24 @@
 <body>
   <div id="authOverlay">
     <div class="auth-card">
+      <button id="authClose" class="auth-close" aria-label="Close">×</button>
       <h2>🌍 wanderpin</h2>
-      <p class="sub">Sign in to save your trips and sync them across devices.</p>
-      <input id="authEmail" type="email" placeholder="Email" autocomplete="email" />
-      <input id="authPass" type="password" placeholder="Password" autocomplete="current-password" />
-      <div id="authMsg"></div>
-      <button id="signInBtn" class="primary">Sign in</button>
-      <button id="signUpBtn" class="ghost">Create account</button>
-      <button id="guestBtn" class="link">Continue without an account</button>
+
+      <div id="authForm">
+        <p class="sub">Sign in to save your trips and sync them across devices.</p>
+        <input id="authEmail" type="email" placeholder="Email" autocomplete="email" />
+        <input id="authPass" type="password" placeholder="Password" autocomplete="current-password" />
+        <div id="authMsg"></div>
+        <button id="signInBtn" class="primary">Sign in</button>
+        <button id="signUpBtn" class="ghost">Create account</button>
+        <button id="guestBtn" class="link">Keep using without an account</button>
+      </div>
+
+      <div id="authProfile">
+        <p class="sub">You're signed in. Your map syncs to the cloud automatically.</p>
+        <div class="profile-email" id="profEmail"></div>
+        <button id="logoutBtn" class="ghost">Log out</button>
+      </div>
     </div>
   </div>
 
@@ -396,10 +431,10 @@
       <button id="collapseBtn" class="collapse-btn" title="Collapse menu" aria-label="Collapse menu">‹</button>
       <h1>🌍 wanderpin</h1>
       <p>Pins on cities, flags on the countries you've visited.</p>
-      <div id="account" class="account">
-        <span id="accEmail" class="acc-email"></span>
-        <button id="logoutBtn" class="acc-logout">Log out</button>
-      </div>
+      <button id="profileBtn" class="profile-btn">
+        <span class="pf-dot">👤</span>
+        <span id="profileLabel">Sign in to sync</span>
+      </button>
     </div>
 
     <div class="search">
@@ -508,13 +543,12 @@
     ]);
 
     // ---------- Supabase (auth + cloud sync) ----------
-    const SUPABASE_URL = "";        // <- fill with your project URL
-    const SUPABASE_ANON_KEY = "";   // <- fill with your anon (public) key
+    const SUPABASE_URL = "https://ljapcarwsnphcybjewot.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_Cw3YsUE7ZEBrmqL0nP4wHQ_QCP1pPna";
     const sb = (window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY)
       ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
       : null;
     let user = null;          // logged-in user (or null)
-    let guestMode = false;    // chose "continue without an account"
     let cloudTimer = null;    // debounce for cloud saves
 
     let places = load();
@@ -1104,21 +1138,33 @@
       } catch (e) { console.warn("cloud load failed", e); }
     }
 
-    if (sb) {
+    const profileLabel = document.getElementById("profileLabel");
+
+    if (!sb) {
+      // No backend configured -> hide profile entirely (guest-only build).
+      document.getElementById("profileBtn").style.display = "none";
+    } else {
+      // Guest by default: the overlay only opens when the user taps Profile.
       sb.auth.onAuthStateChange((_event, session) => {
         if (session) {
           const changed = !user || user.id !== session.user.id;
           user = session.user;
-          guestMode = false;
           document.body.classList.add("logged-in");
-          document.getElementById("accEmail").textContent = user.email || "Signed in";
+          profileLabel.textContent = user.email || "Signed in";
+          document.getElementById("profEmail").textContent = user.email || "";
           hideAuth();
           if (changed) loadFromCloud();
         } else {
           user = null;
           document.body.classList.remove("logged-in");
-          if (!guestMode) showAuth();
+          profileLabel.textContent = "Sign in to sync";
         }
+      });
+
+      document.getElementById("profileBtn").addEventListener("click", () => { authMsg("", ""); showAuth(); });
+      document.getElementById("authClose").addEventListener("click", hideAuth);
+      document.getElementById("authOverlay").addEventListener("click", (e) => {
+        if (e.target.id === "authOverlay") hideAuth();
       });
 
       document.getElementById("signInBtn").addEventListener("click", async () => {
@@ -1140,10 +1186,7 @@
         if (!data.session) authMsg("Account created — check your email to confirm, then sign in.", "ok");
       });
 
-      document.getElementById("guestBtn").addEventListener("click", () => {
-        guestMode = true;
-        hideAuth();
-      });
+      document.getElementById("guestBtn").addEventListener("click", hideAuth);
 
       document.getElementById("authPass").addEventListener("keydown", (e) => {
         if (e.key === "Enter") document.getElementById("signInBtn").click();
