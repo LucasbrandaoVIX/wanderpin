@@ -276,11 +276,40 @@
       padding: 14px 20px 8px;
     }
     .list-head span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    .lh-actions { display: flex; align-items: center; gap: 12px; }
+    .lh-btn {
+      background: none; border: none; color: var(--accent);
+      font-size: 12px; cursor: pointer; padding: 0;
+    }
+    .lh-btn:hover { filter: brightness(1.15); }
     #clearBtn {
       background: none; border: none; color: var(--muted);
       font-size: 12px; cursor: pointer; text-decoration: underline;
     }
     #clearBtn:hover { color: var(--danger); }
+
+    /* Shared-map banner */
+    #sharedBanner {
+      position: absolute;
+      top: 12px; left: 50%; transform: translateX(-50%);
+      z-index: 1200;
+      display: none;
+      align-items: center; gap: 10px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px 10px 8px 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.5);
+      font-size: 13px;
+      max-width: 92vw;
+    }
+    body.shared-view #sharedBanner { display: flex; }
+    #sharedBanner button {
+      border: none; border-radius: 8px; cursor: pointer;
+      font-size: 12.5px; font-weight: 600; padding: 6px 10px;
+    }
+    #copySharedBtn { background: var(--accent); color: #04111f; }
+    #exitSharedBtn { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
 
     #list { flex: 1; overflow-y: auto; padding: 0 12px 16px; }
     .place {
@@ -454,11 +483,19 @@
 
     <div class="list-head">
       <span>Visited places</span>
-      <button id="clearBtn">clear all</button>
+      <div class="lh-actions">
+        <button id="shareBtn" class="lh-btn">🔗 Share</button>
+        <button id="clearBtn">clear all</button>
+      </div>
     </div>
     <div id="list"></div>
   </aside>
 
+  <div id="sharedBanner">
+    <span>👀 Viewing a shared map</span>
+    <button id="copySharedBtn">Save as mine</button>
+    <button id="exitSharedBtn">Close</button>
+  </div>
   <div id="backdrop"></div>
   <button id="openBtn" title="Open menu" aria-label="Open menu">☰</button>
   <div id="map"></div>
@@ -468,71 +505,8 @@
     "use strict";
 
     const STORAGE_KEY = "travel-map-places-v1";
-    const SEED_KEY = "travel-map-seeded-v2";
     const COUNTRY_GEOJSON =
       "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson";
-
-    // Pre-loaded places (seeded once; user-added places are preserved).
-    const SEED = [
-      // Brazil (BR)
-      ["Vitória", "Brazil", "BR", -20.3155, -40.3128],
-      ["São Paulo", "Brazil", "BR", -23.5505, -46.6333],
-      ["Rio de Janeiro", "Brazil", "BR", -22.9068, -43.1729],
-      ["Goiânia", "Brazil", "BR", -16.6869, -49.2648],
-      ["Recife", "Brazil", "BR", -8.0476, -34.8770],
-      ["Foz do Iguaçu", "Brazil", "BR", -25.5163, -54.5854],
-      ["Porto Alegre", "Brazil", "BR", -30.0346, -51.2177],
-      ["Gramado", "Brazil", "BR", -29.3789, -50.8740],
-      ["São João del-Rei", "Brazil", "BR", -21.1359, -44.2619],
-      ["Belo Horizonte", "Brazil", "BR", -19.9167, -43.9345],
-      ["Ouro Preto", "Brazil", "BR", -20.3856, -43.5035],
-      ["Cumuruxatiba", "Brazil", "BR", -17.0954, -39.1880],
-      ["Guarapari", "Brazil", "BR", -20.6717, -40.4969],
-      ["Pedra Azul (ES)", "Brazil", "BR", -20.4119, -41.0186],
-      ["Petrópolis", "Brazil", "BR", -22.5050, -43.1786],
-      // Argentina (AR)
-      ["Bariloche", "Argentina", "AR", -41.1335, -71.3103],
-      ["Puerto Iguazú", "Argentina", "AR", -25.5990, -54.5735],
-      // Paraguay (PY)
-      ["Ciudad del Este", "Paraguay", "PY", -25.5095, -54.6111],
-      // United States (US)
-      ["Miami", "United States", "US", 25.7617, -80.1918],
-      ["Key West", "United States", "US", 24.5551, -81.7800],
-      ["Orlando", "United States", "US", 28.5383, -81.3792],
-      ["San Francisco", "United States", "US", 37.7749, -122.4194],
-      ["Los Angeles", "United States", "US", 34.0522, -118.2437],
-      ["Las Vegas", "United States", "US", 36.1699, -115.1398],
-      ["Solvang", "United States", "US", 34.5958, -120.1377],
-      ["Monterey", "United States", "US", 36.6002, -121.8947],
-      ["Napa Valley", "United States", "US", 38.2975, -122.2869],
-      ["Mount Charleston", "United States", "US", 36.2716, -115.6953],
-      // Spain (ES)
-      ["Barcelona", "Spain", "ES", 41.3851, 2.1734],
-      ["Valencia", "Spain", "ES", 39.4699, -0.3763],
-      ["Madrid", "Spain", "ES", 40.4168, -3.7038],
-      ["Girona", "Spain", "ES", 41.9794, 2.8214],
-      ["Montserrat", "Spain", "ES", 41.5938, 1.8376],
-      ["Peñíscola", "Spain", "ES", 40.3580, 0.4070],
-      // Andorra (AD)
-      ["Andorra la Vella", "Andorra", "AD", 42.5063, 1.5218],
-      // France (FR)
-      ["Paris", "France", "FR", 48.8566, 2.3522],
-      ["Nice", "France", "FR", 43.7102, 7.2620],
-      ["Menton", "France", "FR", 43.7765, 7.5000],
-      ["Cannes", "France", "FR", 43.5528, 7.0174],
-      // Monaco (MC)
-      ["Monaco", "Monaco", "MC", 43.7384, 7.4246],
-      // Italy (IT)
-      ["Sanremo", "Italy", "IT", 43.8159, 7.7762],
-      ["Ventimiglia", "Italy", "IT", 43.7906, 7.6076],
-      // United Kingdom (GB)
-      ["London", "United Kingdom", "GB", 51.5074, -0.1278],
-      ["Cambridge", "United Kingdom", "GB", 52.2053, 0.1218],
-      // Germany (DE)
-      ["Munich", "Germany", "DE", 48.1351, 11.5820],
-      // Austria (AT)
-      ["Salzburg", "Austria", "AT", 47.8095, 13.0550],
-    ];
 
     // Major tourist hubs -> special pin (larger, golden ring and star).
     const MAJOR = new Set([
@@ -550,9 +524,9 @@
       : null;
     let user = null;          // logged-in user (or null)
     let cloudTimer = null;    // debounce for cloud saves
+    let viewingShared = false; // viewing someone else's shared map (read-only)
 
     let places = load();
-    maybeSeed();
     let countryLayer = null;
     const markers = new Map(); // id -> L.marker
 
@@ -1079,23 +1053,59 @@
       catch { return []; }
     }
     function save() {
+      if (viewingShared) return; // don't overwrite own data while viewing a shared map
       localStorage.setItem(STORAGE_KEY, JSON.stringify(places));
       scheduleCloudSave();
     }
 
-    function maybeSeed() {
-      if (localStorage.getItem(SEED_KEY)) return; // already seeded (this version)
-      // Drop any previous-version seed (keeps user-added places).
-      places = places.filter((p) => !String(p.id).startsWith("p_seed_"));
-      SEED.forEach((s, i) => {
-        const [city, country, iso2, lat, lon] = s;
-        const dup = places.find((p) => p.city === city && p.country === country);
-        if (dup) return;
-        places.push({ id: "p_seed_" + i, city, country, iso2, lat, lon });
-      });
-      localStorage.setItem(SEED_KEY, "1");
-      save();
+    // ---------- Share (self-contained link with the map encoded in the URL) ----------
+    function encodeMap(arr) {
+      const compact = arr.map((p) => [p.city, p.country, p.iso2, +(+p.lat).toFixed(4), +(+p.lon).toFixed(4)]);
+      return btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
     }
+    function decodeMap(s) {
+      const compact = JSON.parse(decodeURIComponent(escape(atob(s))));
+      return compact.map((t, i) => ({ id: "sh_" + i, city: t[0], country: t[1], iso2: t[2], lat: t[3], lon: t[4] }));
+    }
+
+    async function shareMap() {
+      if (!places.length) { setStatus("Add some places before sharing.", "err"); return; }
+      const url = location.origin + location.pathname + "#m=" + encodeMap(places);
+      try {
+        if (navigator.share && isMobile()) {
+          await navigator.share({ title: "wanderpin", text: "My travel map", url });
+        } else {
+          await navigator.clipboard.writeText(url);
+          setStatus("Share link copied to clipboard!", "ok");
+        }
+      } catch (e) {
+        // Clipboard blocked (e.g. http on LAN): show the link so the user can copy it.
+        prompt("Copy your share link:", url);
+      }
+    }
+
+    function loadSharedFromHash() {
+      const m = (location.hash || "").match(/[#&]m=([^&]+)/);
+      if (!m) return false;
+      try {
+        places = decodeMap(m[1]);
+        viewingShared = true;
+        document.body.classList.add("shared-view");
+        return true;
+      } catch (e) { return false; }
+    }
+
+    document.getElementById("shareBtn").addEventListener("click", shareMap);
+    document.getElementById("copySharedBtn").addEventListener("click", () => {
+      viewingShared = false;                 // become editable
+      document.body.classList.remove("shared-view");
+      history.replaceState(null, "", location.pathname); // drop the #m=... hash
+      save();                                // persist the copied map as mine
+      setStatus("Saved this map as yours.", "ok");
+    });
+    document.getElementById("exitSharedBtn").addEventListener("click", () => {
+      location.href = location.pathname;     // reload without the hash -> back to own map
+    });
 
     // ---------- Init ----------
     // Rebuild every marker from the current `places` array (used on load and after login).
@@ -1129,7 +1139,7 @@
     }
 
     async function loadFromCloud() {
-      if (!sb || !user) return;
+      if (!sb || !user || viewingShared) return;
       try {
         const { data, error } = await sb.from("maps").select("data").eq("user_id", user.id).maybeSingle();
         if (error) { console.warn(error); return; }
@@ -1203,6 +1213,7 @@
       });
     }
 
+    loadSharedFromHash(); // if opened via a share link, view that map instead
     renderAll();
   })();
   </script>
