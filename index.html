@@ -657,6 +657,9 @@
       .then((r) => r.json())
       .then((geo) => {
         countryLayer = L.geoJSON(geo, {
+          // Big padding -> polygons aren't clipped to the viewport on zoom, so the
+          // flag fill (objectBoundingBox) stays mapped to the whole country.
+          renderer: L.svg({ padding: 4 }),
           style: styleCountry,
           onEachFeature: (f, layer) => {
             layer.on("click", () => {
@@ -699,7 +702,10 @@
 
     const SVG_NS = "http://www.w3.org/2000/svg";
 
-    // Create (once) the <pattern> with the country flag inside the map SVG.
+    // Create (once) the <pattern> with the country flag. objectBoundingBox maps
+    // the flag to the path's own bounding box, so it auto-aligns to the polygon
+    // (no manual coordinate math). The big renderer padding above keeps polygons
+    // from being clipped, so the flag stays painted on the whole country on zoom.
     function ensureFlagPattern(svg, iso) {
       const id = "flagpat-" + iso;
       if (!svg || svg.querySelector("#" + id)) return id;
@@ -707,38 +713,19 @@
       if (!defs) { defs = document.createElementNS(SVG_NS, "defs"); svg.insertBefore(defs, svg.firstChild); }
       const pat = document.createElementNS(SVG_NS, "pattern");
       pat.setAttribute("id", id);
-      pat.setAttribute("patternUnits", "userSpaceOnUse");
+      pat.setAttribute("patternContentUnits", "objectBoundingBox");
+      pat.setAttribute("width", "1");
+      pat.setAttribute("height", "1");
       const img = document.createElementNS(SVG_NS, "image");
       const url = "https://flagcdn.com/w320/" + iso + ".png";
       img.setAttributeNS("http://www.w3.org/1999/xlink", "href", url);
       img.setAttribute("href", url);
+      img.setAttribute("width", "1");
+      img.setAttribute("height", "1");
       img.setAttribute("preserveAspectRatio", "xMidYMid slice");
       pat.appendChild(img);
       defs.appendChild(pat);
       return id;
-    }
-
-    // Map each visited country's flag to its TRUE projected bounding box
-    // (not the clipped path bbox), so it stays painted on the country and
-    // doesn't remap when Leaflet clips paths on zoom. Recomputed on zoom.
-    function updateFlagGeometry() {
-      if (!countryLayer) return;
-      countryLayer.eachLayer((layer) => {
-        const iso = featureISO2(layer.feature).toLowerCase();
-        if (!iso || !visitedISO2().has(iso.toUpperCase())) return;
-        const svg = layer._path && layer._path.ownerSVGElement;
-        if (!svg) return;
-        const pat = svg.querySelector("#flagpat-" + iso);
-        if (!pat) return;
-        const b = layer.getBounds();
-        const nw = map.latLngToLayerPoint(b.getNorthWest());
-        const se = map.latLngToLayerPoint(b.getSouthEast());
-        const x = nw.x, y = nw.y, w = Math.max(1, se.x - nw.x), h = Math.max(1, se.y - nw.y);
-        for (const el of [pat, pat.firstChild]) {
-          el.setAttribute("x", x); el.setAttribute("y", y);
-          el.setAttribute("width", w); el.setAttribute("height", h);
-        }
-      });
     }
 
     // Fill each visited country with its own flag, very subtle.
@@ -756,10 +743,7 @@
           path.setAttribute("fill-opacity", "0");
         }
       });
-      updateFlagGeometry();
     }
-
-    map.on("zoomend", updateFlagGeometry);
 
     // ---------- Add a place ----------
     const input = document.getElementById("cityInput");
