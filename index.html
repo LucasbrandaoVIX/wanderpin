@@ -509,12 +509,48 @@
       "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson";
 
     // Major tourist hubs -> special pin (larger, golden ring and star).
-    const MAJOR = new Set([
-      "Rio de Janeiro", "São Paulo", "Foz do Iguaçu",
-      "Miami", "Orlando", "Los Angeles", "Las Vegas", "San Francisco",
-      "Barcelona", "Madrid", "Paris", "Nice", "Cannes", "Monaco",
-      "London", "Munich", "Salzburg",
-    ]);
+    // Matching ignores case and accents (see `norm` below), so one spelling is enough.
+    const MAJOR_LIST = [
+      // --- Europe ---
+      "Paris", "London", "Rome", "Barcelona", "Madrid", "Amsterdam", "Venice", "Florence",
+      "Milan", "Vienna", "Prague", "Berlin", "Munich", "Hamburg", "Cologne", "Frankfurt",
+      "Lisbon", "Porto", "Funchal", "Athens", "Santorini", "Mykonos", "Istanbul", "Dublin",
+      "Edinburgh", "Brussels", "Bruges", "Ghent", "Budapest", "Copenhagen", "Stockholm",
+      "Oslo", "Bergen", "Helsinki", "Reykjavik", "Zurich", "Geneva", "Lucerne", "Interlaken",
+      "Nice", "Cannes", "Monaco", "Marseille", "Lyon", "Bordeaux", "Strasbourg",
+      "Naples", "Verona", "Bologna", "Pisa", "Genoa", "Turin", "Palermo", "Capri",
+      "Seville", "Valencia", "Granada", "Malaga", "Bilbao", "San Sebastian", "Toledo", "Cordoba",
+      "Dubrovnik", "Split", "Zagreb", "Ljubljana", "Krakow", "Warsaw", "Salzburg", "Innsbruck",
+      "Rotterdam", "The Hague", "Antwerp", "Tallinn", "Riga", "Vilnius", "Bucharest", "Sofia",
+      "Belgrade", "Gothenburg", "Moscow", "Saint Petersburg",
+      // --- Asia ---
+      "Tokyo", "Kyoto", "Osaka", "Nara", "Hiroshima", "Sapporo", "Seoul", "Busan",
+      "Beijing", "Shanghai", "Hong Kong", "Macau", "Xi'an", "Guilin", "Chengdu",
+      "Bangkok", "Chiang Mai", "Phuket", "Singapore", "Kuala Lumpur", "Jakarta", "Denpasar",
+      "Ubud", "Hanoi", "Ho Chi Minh City", "Siem Reap", "Luang Prabang", "Yangon",
+      "Kathmandu", "Delhi", "Mumbai", "Jaipur", "Agra", "Varanasi", "Colombo", "Male",
+      "Taipei", "Manila", "Cebu", "Tashkent", "Samarkand", "Tbilisi", "Yerevan", "Baku",
+      // --- Middle East ---
+      "Dubai", "Abu Dhabi", "Doha", "Muscat", "Amman", "Petra", "Jerusalem", "Tel Aviv", "Beirut",
+      // --- Africa ---
+      "Cairo", "Luxor", "Aswan", "Marrakesh", "Casablanca", "Fez", "Tunis",
+      "Cape Town", "Johannesburg", "Nairobi", "Zanzibar City", "Victoria Falls", "Addis Ababa",
+      // --- North America ---
+      "New York", "Los Angeles", "San Francisco", "Las Vegas", "Chicago", "Miami", "Orlando",
+      "Washington", "Boston", "Seattle", "New Orleans", "San Diego", "Honolulu",
+      "Toronto", "Vancouver", "Montreal", "Quebec City", "Banff",
+      "Mexico City", "Cancun", "Tulum", "Playa del Carmen", "Oaxaca", "Guadalajara",
+      "Havana", "San Juan", "Nassau", "Punta Cana", "Santo Domingo",
+      // --- South America ---
+      "Rio de Janeiro", "Sao Paulo", "Salvador", "Florianopolis", "Foz do Iguacu",
+      "Buenos Aires", "Mendoza", "Bariloche", "Ushuaia", "Lima", "Cusco", "Machu Picchu",
+      "Bogota", "Cartagena", "Medellin", "Santiago", "Quito", "La Paz", "Montevideo",
+      // --- Oceania ---
+      "Sydney", "Melbourne", "Brisbane", "Cairns", "Gold Coast", "Perth",
+      "Auckland", "Queenstown", "Wellington", "Christchurch", "Nadi", "Bora Bora", "Papeete",
+    ];
+    const norm = (s) => String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const MAJOR = new Set(MAJOR_LIST.map(norm));
 
     // ---------- Supabase (auth + cloud sync) ----------
     const SUPABASE_URL = "https://ljapcarwsnphcybjewot.supabase.co";
@@ -921,7 +957,7 @@
     function addMarker(place) {
       const iso = (place.iso2 || "").toLowerCase();
       const ring = colorForCountry(place.iso2 || place.country || "");
-      const major = MAJOR.has(place.city);
+      const major = MAJOR.has(norm(place.city));
       const shadow = major
         ? "0 0 0 2px #ffd24a,0 0 9px 2px rgba(255,210,74,.55),0 1px 4px rgba(0,0,0,.5)"
         : "0 0 0 1.5px " + ring + ",0 1px 4px rgba(0,0,0,.5)";
