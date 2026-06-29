@@ -229,7 +229,7 @@
     .stats {
       display: flex;
       padding: 14px 20px;
-      gap: 12px;
+      gap: 6px;
       border-bottom: 1px solid var(--border);
     }
     .stat {
@@ -490,7 +490,6 @@
 
     // ---------- Map ----------
     const map = L.map("map", { worldCopyJump: true, minZoom: 2, doubleClickZoom: false, zoomControl: false }).setView([20, 10], 2);
-    L.control.zoom({ position: "topright" }).addTo(map);
 
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       attribution: '&copy; OpenStreetMap &copy; CARTO',
