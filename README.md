@@ -4,6 +4,8 @@ A personal map of your travels — drop pins on the cities you've visited and wa
 
 Single-file app: just open `index.html` in your browser. No install, no build.
 
+![wanderpin screenshot](assets/screenshot.png)
+
 ## Features
 
 - **City search** with autocomplete (suggestions as you type) — drops a pin with the country's flag.
