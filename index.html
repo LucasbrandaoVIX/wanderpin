@@ -13,6 +13,9 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
+  <!-- Supabase (auth + cloud sync) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
     :root {
       --bg: #0f1419;
@@ -90,6 +93,61 @@
       padding: 20px 20px 16px;
       border-bottom: 1px solid var(--border);
     }
+
+    /* Account row */
+    .account { display: none; align-items: center; gap: 8px; margin-top: 12px; }
+    body.logged-in .account { display: flex; }
+    .acc-email { flex: 1; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .acc-logout {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      font-size: 11px; padding: 4px 9px; border-radius: 7px; cursor: pointer;
+    }
+    .acc-logout:hover { color: var(--text); }
+
+    /* Auth overlay */
+    #authOverlay {
+      position: fixed; inset: 0; z-index: 3000;
+      background: rgba(8, 11, 15, 0.93);
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    #authOverlay.show { display: flex; }
+    .auth-card {
+      width: 100%; max-width: 360px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.5);
+    }
+    .auth-card h2 { font-size: 20px; letter-spacing: -0.3px; }
+    .auth-card .sub { color: var(--muted); font-size: 13px; margin: 6px 0 18px; line-height: 1.5; }
+    .auth-card input {
+      width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+      color: var(--text); padding: 12px 13px; border-radius: 10px; font-size: 14px;
+      margin-bottom: 10px; outline: none;
+    }
+    .auth-card input:focus { border-color: var(--accent); }
+    .auth-card input::placeholder { color: var(--muted); }
+    .auth-card button.primary {
+      width: 100%; background: var(--accent); color: #04111f; border: none;
+      padding: 12px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; margin-top: 4px;
+    }
+    .auth-card button.primary:hover { filter: brightness(1.08); }
+    .auth-card button.ghost {
+      width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+      padding: 11px; border-radius: 10px; font-size: 13px; cursor: pointer; margin-top: 9px;
+    }
+    .auth-card button.ghost:hover { border-color: var(--accent); }
+    .auth-card .link {
+      display: block; width: 100%; background: none; border: none; color: var(--muted);
+      font-size: 12.5px; cursor: pointer; margin-top: 16px; text-decoration: underline;
+    }
+    .auth-card .link:hover { color: var(--text); }
+    #authMsg { font-size: 12.5px; min-height: 16px; margin: 2px 0 8px; }
+    #authMsg.err { color: var(--danger); }
+    #authMsg.ok { color: var(--accent); }
     .brand h1 {
       font-size: 19px;
       font-weight: 700;
@@ -287,11 +345,28 @@
   </style>
 </head>
 <body>
+  <div id="authOverlay">
+    <div class="auth-card">
+      <h2>🌍 My Travel Map</h2>
+      <p class="sub">Sign in to save your trips and sync them across devices.</p>
+      <input id="authEmail" type="email" placeholder="Email" autocomplete="email" />
+      <input id="authPass" type="password" placeholder="Password" autocomplete="current-password" />
+      <div id="authMsg"></div>
+      <button id="signInBtn" class="primary">Sign in</button>
+      <button id="signUpBtn" class="ghost">Create account</button>
+      <button id="guestBtn" class="link">Continue without an account</button>
+    </div>
+  </div>
+
   <aside id="sidebar">
     <div class="brand">
       <button id="collapseBtn" class="collapse-btn" title="Collapse menu" aria-label="Collapse menu">‹</button>
       <h1>🌍 My Travel Map</h1>
       <p>Pins on cities, flags on the countries you've visited.</p>
+      <div id="account" class="account">
+        <span id="accEmail" class="acc-email"></span>
+        <button id="logoutBtn" class="acc-logout">Log out</button>
+      </div>
     </div>
 
     <div class="search">
@@ -397,6 +472,16 @@
       "Barcelona", "Madrid", "Paris", "Nice", "Cannes", "Monaco",
       "London", "Munich", "Salzburg",
     ]);
+
+    // ---------- Supabase (auth + cloud sync) ----------
+    const SUPABASE_URL = "";        // <- fill with your project URL
+    const SUPABASE_ANON_KEY = "";   // <- fill with your anon (public) key
+    const sb = (window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY)
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+    let user = null;          // logged-in user (or null)
+    let guestMode = false;    // chose "continue without an account"
+    let cloudTimer = null;    // debounce for cloud saves
 
     let places = load();
     maybeSeed();
@@ -915,6 +1000,7 @@
     }
     function save() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(places));
+      scheduleCloudSave();
     }
 
     function maybeSeed() {
@@ -932,10 +1018,103 @@
     }
 
     // ---------- Init ----------
-    places.forEach(addMarker);
-    renderList();
-    updateStats();
-    setTimeout(spread, 250);
+    // Rebuild every marker from the current `places` array (used on load and after login).
+    function renderAll() {
+      clusters.forEach((g) => g.clearLayers());
+      markers.clear();
+      places.forEach(addMarker);
+      renderList();
+      refreshCountryColors();
+      updateStats();
+      setTimeout(spread, 250);
+    }
+
+    // ---------- Auth + cloud sync ----------
+    function authMsg(text, kind) {
+      const el = document.getElementById("authMsg");
+      el.textContent = text || "";
+      el.className = kind || "";
+    }
+    function showAuth() { document.getElementById("authOverlay").classList.add("show"); }
+    function hideAuth() { document.getElementById("authOverlay").classList.remove("show"); }
+
+    function scheduleCloudSave() {
+      if (!sb || !user) return;
+      clearTimeout(cloudTimer);
+      cloudTimer = setTimeout(async () => {
+        try {
+          await sb.from("maps").upsert({ user_id: user.id, data: places, updated_at: new Date().toISOString() });
+        } catch (e) { console.warn("cloud save failed", e); }
+      }, 800);
+    }
+
+    async function loadFromCloud() {
+      if (!sb || !user) return;
+      try {
+        const { data, error } = await sb.from("maps").select("data").eq("user_id", user.id).maybeSingle();
+        if (error) { console.warn(error); return; }
+        if (!data) {
+          // First login on this account: migrate whatever is currently shown to the cloud.
+          scheduleCloudSave();
+          return;
+        }
+        places = Array.isArray(data.data) ? data.data : [];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(places));
+        renderAll();
+      } catch (e) { console.warn("cloud load failed", e); }
+    }
+
+    if (sb) {
+      sb.auth.onAuthStateChange((_event, session) => {
+        if (session) {
+          const changed = !user || user.id !== session.user.id;
+          user = session.user;
+          guestMode = false;
+          document.body.classList.add("logged-in");
+          document.getElementById("accEmail").textContent = user.email || "Signed in";
+          hideAuth();
+          if (changed) loadFromCloud();
+        } else {
+          user = null;
+          document.body.classList.remove("logged-in");
+          if (!guestMode) showAuth();
+        }
+      });
+
+      document.getElementById("signInBtn").addEventListener("click", async () => {
+        const email = document.getElementById("authEmail").value.trim();
+        const pass = document.getElementById("authPass").value;
+        if (!email || !pass) { authMsg("Enter your email and password.", "err"); return; }
+        authMsg("Signing in…", "");
+        const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+        if (error) authMsg(error.message, "err");
+      });
+
+      document.getElementById("signUpBtn").addEventListener("click", async () => {
+        const email = document.getElementById("authEmail").value.trim();
+        const pass = document.getElementById("authPass").value;
+        if (!email || !pass) { authMsg("Enter an email and a password (6+ chars).", "err"); return; }
+        authMsg("Creating account…", "");
+        const { data, error } = await sb.auth.signUp({ email, password: pass });
+        if (error) { authMsg(error.message, "err"); return; }
+        if (!data.session) authMsg("Account created — check your email to confirm, then sign in.", "ok");
+      });
+
+      document.getElementById("guestBtn").addEventListener("click", () => {
+        guestMode = true;
+        hideAuth();
+      });
+
+      document.getElementById("authPass").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") document.getElementById("signInBtn").click();
+      });
+
+      document.getElementById("logoutBtn").addEventListener("click", async () => {
+        await sb.auth.signOut();
+      });
+    }
+
+    renderAll();
   })();
   </script>
 </body>
