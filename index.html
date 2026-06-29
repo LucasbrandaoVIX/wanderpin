@@ -563,9 +563,9 @@
       doubleClickZoom: false,
       zoomControl: false,
       zoomSnap: 0,             // allow fractional zoom -> continuous, not stepped
-      zoomDelta: 0.4,
-      wheelPxPerZoomLevel: 120, // more scroll per zoom level -> finer, smoother
-      wheelDebounceTime: 20,
+      zoomDelta: 0.5,
+      wheelPxPerZoomLevel: 80, // scroll per zoom level (lower = more responsive)
+      wheelDebounceTime: 15,
     }).setView([20, 10], 2);
 
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
@@ -666,9 +666,10 @@
       .then((r) => r.json())
       .then((geo) => {
         countryLayer = L.geoJSON(geo, {
-          // Big padding -> polygons aren't clipped to the viewport on zoom, so the
+          // Some padding -> polygons aren't clipped to the viewport on zoom, so the
           // flag fill (objectBoundingBox) stays mapped to the whole country.
-          renderer: L.svg({ padding: 4 }),
+          // Kept modest to avoid a huge SVG repainting on every zoom frame.
+          renderer: L.svg({ padding: 1 }),
           style: styleCountry,
           onEachFeature: (f, layer) => {
             layer.on("click", () => {
