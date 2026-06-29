@@ -344,6 +344,21 @@
     .leaflet-popup-content { margin: 12px 14px; font-size: 13px; }
     .leaflet-popup-content b { font-size: 14px; }
     .leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+    .pop .pop-country { color: var(--muted); }
+    .pop-remove {
+      display: block;
+      margin-top: 10px;
+      width: 100%;
+      background: rgba(255,107,107,.14);
+      color: var(--danger);
+      border: 1px solid rgba(255,107,107,.4);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .pop-remove:hover { background: rgba(255,107,107,.24); }
 
     .pin-icon {
       width: 16px; height: 16px;
@@ -982,8 +997,11 @@
       group.addLayer(m);
       const flagEmoji = isoToFlag(place.iso2);
       m.bindPopup(
+        '<div class="pop">' +
         "<b>" + escapeHtml(place.city) + "</b><br>" +
-        (flagEmoji ? flagEmoji + " " : "") + escapeHtml(place.country || "")
+        '<span class="pop-country">' + (flagEmoji ? flagEmoji + " " : "") + escapeHtml(place.country || "") + "</span>" +
+        '<button class="pop-remove" data-id="' + escapeHtml(place.id) + '">Remove</button>' +
+        "</div>"
       );
       markers.set(place.id, m);
     }
@@ -1130,6 +1148,15 @@
         return true;
       } catch (e) { return false; }
     }
+
+    // Remove a place from its map popup.
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(".pop-remove");
+      if (!btn) return;
+      const id = btn.getAttribute("data-id");
+      map.closePopup();
+      removePlace(id);
+    });
 
     document.getElementById("shareBtn").addEventListener("click", shareMap);
     document.getElementById("copySharedBtn").addEventListener("click", () => {
