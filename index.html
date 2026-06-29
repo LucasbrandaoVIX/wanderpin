@@ -74,6 +74,8 @@
     #openBtn:hover { background: var(--panel-2); }
     body.nav-collapsed #openBtn { display: flex; }
 
+    #backdrop { display: none; }
+
     .collapse-btn {
       position: absolute;
       top: 16px; right: 14px;
@@ -336,11 +338,42 @@
     }
 
     @media (max-width: 720px) {
-      body { flex-direction: column; }
-      #sidebar { width: 100%; min-width: 0; height: 45%; }
-      #map { height: 55%; }
-      body.nav-collapsed #sidebar { margin-left: 0; display: none; }
-      body.nav-collapsed #map { height: 100%; }
+      /* Map full-screen; sidebar becomes a slide-in drawer over it. */
+      #map { height: 100%; width: 100%; }
+
+      #sidebar {
+        position: fixed;
+        top: 0; left: 0;
+        height: 100%;
+        width: 86%;
+        max-width: 330px;
+        min-width: 0;
+        z-index: 2000;
+        margin-left: 0;
+        transform: translateX(0);
+        transition: transform .25s ease;
+        box-shadow: 2px 0 24px rgba(0,0,0,.55);
+      }
+      body.nav-collapsed #sidebar { margin-left: 0; transform: translateX(-100%); }
+
+      #backdrop {
+        position: fixed; inset: 0; z-index: 1500;
+        background: rgba(0,0,0,.5);
+        -webkit-backdrop-filter: blur(1px); backdrop-filter: blur(1px);
+      }
+      body.nav-collapsed #backdrop { display: none; }
+      body:not(.nav-collapsed) #backdrop { display: block; }
+
+      /* Bigger, thumb-friendly open button */
+      #openBtn { top: 14px; left: 14px; width: 44px; height: 44px; font-size: 19px; }
+
+      /* A touch more breathing room inside the drawer */
+      .brand { padding: 18px 18px 14px; }
+      .search { padding: 14px 18px 10px; }
+      .stats { padding: 6px 18px 14px; }
+      #cityInput { padding: 13px; font-size: 16px; } /* 16px avoids iOS zoom-on-focus */
+      .place { padding: 13px 10px; }
+      .place .del { opacity: 1; } /* no hover on touch -> always show delete */
     }
   </style>
 </head>
@@ -391,6 +424,7 @@
     <div id="list"></div>
   </aside>
 
+  <div id="backdrop"></div>
   <button id="openBtn" title="Open menu" aria-label="Open menu">☰</button>
   <div id="map"></div>
 
@@ -720,12 +754,17 @@
     map.on("dblclick", (e) => reverseGeocode(e.latlng.lat, e.latlng.lng));
 
     // Collapse / expand the sidebar.
+    function isMobile() { return window.matchMedia("(max-width: 720px)").matches; }
     function setNav(collapsed) {
       document.body.classList.toggle("nav-collapsed", collapsed);
       setTimeout(() => map.invalidateSize(), 280);
     }
+    function closeNavIfMobile() { if (isMobile()) setNav(true); }
     document.getElementById("collapseBtn").addEventListener("click", () => setNav(true));
     document.getElementById("openBtn").addEventListener("click", () => setNav(false));
+    document.getElementById("backdrop").addEventListener("click", () => setNav(true));
+    // On phones the drawer starts closed (map full-screen).
+    if (isMobile()) document.body.classList.add("nav-collapsed");
 
     async function fetchSuggestions(q) {
       const seq = ++searchSeq;
@@ -860,6 +899,7 @@
       renderList();
       refreshCountryColors();
       updateStats();
+      closeNavIfMobile();
       map.flyTo([place.lat, place.lon], Math.max(map.getZoom(), 5), { duration: 0.8 });
     }
 
@@ -901,6 +941,7 @@
     function focusPlace(id) {
       const p = places.find((x) => x.id === id);
       if (!p) return;
+      closeNavIfMobile();
       const m = markers.get(id);
       if (m && m._group) {
         m._group.zoomToShowLayer(m, () => m.openPopup());
