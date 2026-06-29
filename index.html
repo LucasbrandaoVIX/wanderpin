@@ -557,7 +557,16 @@
     const markers = new Map(); // id -> L.marker
 
     // ---------- Map ----------
-    const map = L.map("map", { worldCopyJump: true, minZoom: 2, doubleClickZoom: false, zoomControl: false }).setView([20, 10], 2);
+    const map = L.map("map", {
+      worldCopyJump: true,
+      minZoom: 2,
+      doubleClickZoom: false,
+      zoomControl: false,
+      zoomSnap: 0,             // allow fractional zoom -> continuous, not stepped
+      zoomDelta: 0.4,
+      wheelPxPerZoomLevel: 120, // more scroll per zoom level -> finer, smoother
+      wheelDebounceTime: 20,
+    }).setView([20, 10], 2);
 
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       attribution: '&copy; OpenStreetMap &copy; CARTO',
